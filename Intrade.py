@@ -8,6 +8,9 @@ def _getXmlStr(x):
         except:
                 return "Parse Fail: %s" %(x)
 
+def pXml(x):
+    print _getXmlStr(x)
+
 class IntradeError(Exception):
         pass
 
@@ -112,9 +115,9 @@ class OpenOrder:
                 self.userReference = resp.xpath('userReference')[0].text
                 self.timeInForce = resp.xpath('timeInForce')[0].text
                 self.touchPrice = float(resp.xpath('touchprice/text()')[0])
-                vt =  resp.xpath('visibleTime/text()')[0]
-                if vt != "":
-                    self.visibleTime = long(vt)
+                vt =  resp.xpath('visibleTime/text()')
+                if len(vt):
+                    self.visibleTime = vt[0]
                 else:
                     self.visibleTime = -1
                 
@@ -313,6 +316,12 @@ class CancelResponse:
         def __init__(self, resp):
                 self.isEndOfDay = bool(resp.xpath('isEndOfDay')[0].text)
                 self.didCancel = bool(resp.xpath('didCancel')[0].text)
+                self.orderCancelList = []
+
+                oids = resp.xpath('orderCancelList/ordID/text()')
+                for oid in oids:
+                    self.orderCancelList.append(oid)
+
                 
 class Intrade:
         def __init__(self, membershipNum, password, live = False):
@@ -433,7 +442,7 @@ class Intrade:
 
                 return orderResponses
 
-        def cancelMultipleOrdersForUser(self, orderIds):
+        def cancelOrdersById(self, orderIds):
                 op = 'cancelMultipleOrdersForUser'
                 params = []
                 for oid in orderIds:
@@ -441,9 +450,9 @@ class Intrade:
                 params.append( {"sessionData": self.sessionData })
                 req = self.buildRequest(op, params)
                 resp = self.sendRequest(self.TRADE_URL, req)
+                return CancelResponse(resp)
                 
-                
-        def getCancelAllInContract(self, contractId):
+        def cancelAllOrdersInContract(self, contractId):
                 op = 'getCancelAllInContract'
                 params = { "contractID": contractId
                            , "sessionData": self.sessionData
@@ -451,46 +460,49 @@ class Intrade:
 
                 req = self.buildRequest(op, params)
                 resp = self.sendRequest(self.TRADE_URL, req)
+                return CancelResponse(resp)
 
-        def getCancelAllBids(self, contractId):
+        def cancelAllBids(self, contractId):
                 op = 'getCancelAllBids'
                 params = { "contractID": contractId
                            ,"sessionData": self.sessionData
                         }
                 req = self.buildRequest(op, params)
                 resp = self.sendRequest(self.TRADE_URL, req)
+                return CancelResponse(resp)
 
-        def getCancelAllOffers(self, contractId):
+        def cancelAllOffers(self, contractId):
                 op = 'getCancelAllOffers'
                 params = { "contractID": contractId
                            , "sessionData": self.sessionData
                         }
                 req = self.buildRequest(op, params)
                 resp = self.sendRequest(self.TRADE_URL, req)
+                return CancelResponse(resp)
 
-        def cancelAllInEvent(self, eventId):
+        def cancelOrdersInEvent(self, eventId):
                 op = 'cancelAllInEvent'
                 params = { "eventID": eventId
                            ,"sessionData": self.sessionData
                            }
                 req = self.buildRequest(op, params)
                 resp = self.sendRequest(self.TRADE_URL, req)
+                return CancelResponse(resp)
 
-        def cancelAllOrdersForUser(self):
+        def cancelAllOrders(self):
                 op = 'cancelAllOrdersForUser'
                 params = {'sessionData':self.sessionData}
                 req = self.buildRequest(op, params)
                 resp = self.sendRequest(self.TRADE_URL, req)
                 return CancelResponse(resp)
                 
-        def getPosForUser(self, contractId = ""):
+        def getPositions(self, contractId = ""):
                 op = 'getPosForUser'
                 params = { "sessionData": self.sessionData }
                 if contractId != "":
                         params["contractId"] = contractId
                 req = self.buildRequest(op, params)
                 resp = self.sendRequest(self.TRADE_URL, req)
-
                 ps = []
                 positions = resp.xpath('position')
                 for position in positions:

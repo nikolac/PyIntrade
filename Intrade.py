@@ -11,6 +11,24 @@ def _getXmlStr(x):
 def pXml(x):
     print _getXmlStr(x)
 
+def _getMessageType(cd):
+    msgTypes = {
+            "T":"Execution (Trade)"
+            ,"D":"Canceled by exchange"
+            ,"E":"Contract Expiry"
+            ,"J":"Rejected Cancel Request"
+            ,"M":"Message"
+            ,"R":"Rejected Order"
+            ,"S":"Contract scratched"
+            ,"V":"Stop Activated"
+            ,"X":"Order Expired (for GTS or GTT)"
+    }
+
+    if msgTypes.has_key(cd):
+        return msgTypes[cd]
+    else:
+        return "Unknown message code [%s]" % (cd)
+
 class IntradeError(Exception):
         pass
 
@@ -158,13 +176,31 @@ class Message:
                 self.msgId = int(resp.attrib['msgID'])
                 self.conId = int(resp.xpath('conID')[0].text)
                 self.symbol = resp.xpath('symbol')[0].text
-                self.readFlag = resp.xpath('readFlag')[0].text
-                self.type = resp.xpath('type')[0].text
+                self.readFlag = bool(resp.xpath('readFlag')[0].text)
+                self.typeCd = resp.xpath('type')[0].text
+                self.typeDesc = _getMessageType(self.typeCd)
                 self.msg = resp.xpath('msg')[0].text
                 self.price = float(resp.xpath('price')[0].text)
                 self.quantity = int(resp.xpath('quantity')[0].text)
                 self.side = resp.xpath('side')[0].text
                 self.timestamp = long(resp.xpath('timestamp')[0].text)
+
+        def __str__(self):
+            return "msgid=%s,conId=%s,symbol=%s,readFlag=%s,typeCd=%s,typeDesc=%s,msg=%s" % (
+                    self.msgId
+                    ,self.conId
+                    ,self.symbol
+                    ,self.readFlag
+                    ,self.typeCd
+                    ,self.typeDesc
+                    ,self.msg
+                ) + ",price=%s,quantity=%s,side=%s,timestamp=%s" % (
+                    self.price
+                    ,self.quantity
+                    ,self.side
+                    ,self.timestamp
+                )
+
 
 class Trade:
         def __init__(self, resp):
@@ -173,7 +209,17 @@ class Trade:
                 self.side= resp.xpath('side')[0].text
                 self.quantity= int(resp.xpath('quantity')[0].text)
                 self.price= float(resp.xpath('price')[0].text)
-                self.executionTime= long(resp.xpath('executionTime')[0].text)
+                self.executionTime= long(resp.xpath('executionTime/text()')[0])
+
+        def __str__(self):
+                return "conId=%s,orderId=%s,side=%s,quantity=%s,price=%s,executionTime=%s" % (
+                        self.conId
+                        ,self.orderId
+                        ,self.side
+                        ,self.quantity
+                        ,self.price
+                        ,self.executionTime
+                )
 
 class Contract:
         def __init__(self, resp):
@@ -263,8 +309,8 @@ class PriceContractInfo:
 
 class ContractBookInfo:
         def __init__(self, resp):
-                self.lastUpdatedTime = long(resp.attrib['lastUpdatedTime'])
-                self.priceContactInfos = []
+                self.lastUpdatedTime = long(resp.attrib['lastUpdateTime'])
+                self.priceContractInfos = []
 
                 pis = resp.xpath('contractInfo')
                 for pi in pis:
@@ -287,12 +333,24 @@ class ContractInfo:
                 self.state = resp.attrib['state']
                 self.tickSize = float(resp.attrib['tickSize'])
                 self.tickValue = float(resp.attrib['tickValue'])
-                self.totalvol = int(resp.attrib['totalvol'])
+                tv = resp.attrib['totalvol']
+                if tv[-1:] == 'k':
+                    self.totalVolume = float(tv[:-1]) *1000
+                else:
+                    self.totalVolume = float(tv)
+
                 self.type = resp.attrib['type']
-                self.marginLinked = resp.attrib['marginLinked']
-                self.marginGroupId = -1
-                if resp.attrib['marginGroupId'] != "":
+
+                if resp.attrib.has_key('marginLinked'):
+                    self.marginLinked = resp.attrib['marginLinked']
+                else:
+                    self.marginLinked = ''
+                
+
+                if resp.attrib.has_key('marginGroupId'):
                         self.marginGroupId = resp.attrib['marginGroupId']
+                else:
+                    self.marginGroupId = -1
                 self.symbol = resp.xpath('symbol')[0].text
                 
                 
@@ -308,9 +366,17 @@ class TimeSale:
         def __init__(self, resp):
                 ps = resp.split(',')
                 self.timestamp = long(ps[0])
-                self.date = ps[1]
+                self.date = ps[1].strip()
                 self.price = float(ps[2])
                 self.quantity = int(ps[3])
+
+        def __str__(self):
+            return "timestamp=%s,date=%s,price=%s,quantity=%s" % (
+                    self.timestamp
+                    ,self.date
+                    ,self.price
+                    ,self.quantity
+                )
                 
 class CancelResponse:
         def __init__(self, resp):
@@ -372,10 +438,10 @@ class Intrade:
                 parts = []
                 for p in params:
                         if type(params[p]) == str:
-                                parts.push( p + '=' + params[p] )
+                                parts.append( p + '=' + params[p] )
                         if type(params[p]) == list:
                                 for i in params[p]:
-                                        parts.push( p + '=' + str(i) )
+                                        parts.append( p + '=' + str(i) )
                 return url + "&".join(parts)
                         
                 
@@ -386,6 +452,9 @@ class Intrade:
         def sendDataRequest(self, req):
                 respXml = urllib.urlopen(url = req).read()
                 return etree.fromstring(respXml)
+
+        def sendTextRequest(self, req):
+                return urllib.urlopen(url = req).read()
         
         def sendRequest(self, url, req, attempt = 0):
                 respXml = urllib.urlopen(url=url, data = req).read()
@@ -536,10 +605,7 @@ class Intrade:
                 
                 req = self.buildRequest(op, params)
                 resp = self.sendRequest(self.TRADE_URL, req)
-                print
-                pXml(req)
-                print
-                pXml(resp)
+
                 os = []
                 
                 orders = resp.xpath('order')
@@ -547,7 +613,7 @@ class Intrade:
                         os.append( UserOrder(order))
                 return os
 
-        def getUserMessages(self, timestamp = ""):
+        def getMessages(self, timestamp = ""):
                 op = 'getUserMessages'
                 params = {'sessionData':self.sessionData}
                 if timestamp != '':
@@ -574,7 +640,7 @@ class Intrade:
                 req = self.buildRequest(op, params)
                 resp = self.sendRequest(self.TRADE_URL, req)
 
-        def getTradesForUser(self, timestamp = 1111111111111,
+        def getTrades(self, timestamp = 1111111111111,
                              endDate = "", contractId = ""):
                 op = 'getTradesForUser'
                 params = {"sessionData":self.sessionData}
@@ -606,25 +672,23 @@ class Intrade:
 
                 hasMessages = 0
                 if resp.attrib.has_key('hasMessages'):
-                        hasMessages = resp.attrib['hasMessages']
-                if hasMessages == '1':
-                        return True
-                else:
-                        return False
+                        hasMessages = int(resp.attrib['hasMessages'])
 
-        def allActiveContracts(self):
+                return hasMessages
+
+        def getMarketData(self):
                 req = self.buildDataRequest( self.ALL_CONTRACTS_URL, {})
                 resp = self.sendDataRequest(req)
                 
                 return MarketData(resp)
         
-        def allContractsByEventClass(self,eventClass):
+        def getMarketDataByEventClass(self,eventClass):
                 req = self.buildDataRequest( self.CONTRACTS_BY_EVENT_CLASS_URL,
                                              {"classID":eventClass})
                 resp = self.sendDataRequest(req)
-                return MarketData(resp)
+                return EventClass(resp)
 
-        def priceInformation(self, conIds, timestamp='', depth = 5):
+        def getPriceInfo(self, conIds, timestamp='', depth = 5):
                 args = {"depth":depth, 'id' : conIds}
                 if timestamp != "":
                         args["timestamp"] = timestamp 
@@ -634,7 +698,7 @@ class Intrade:
                 resp = self.sendDataRequest(req)
                 return ContractBookInfo(resp)
 
-        def contractInformation(self, conIds):
+        def getContractInfo(self, conIds):
                 req = self.buildDataRequest( self.CONTRACT_INFO_URL,
                                              {'id':conIds})
                 resp = self.sendDataRequest(req)
@@ -644,17 +708,26 @@ class Intrade:
                         conInfos.append( ContractInfo(con) )
                 return conInfos
 
-        def closingPrice(self, conId):
+        def getClosingPrice(self, conId):
                 req = self.buildDataRequest( self.HISTORICAL_CLOSING_PRICE_URL,
                                              {"conID":conId})
                 resp = self.sendDataRequest(req)
                 closingPrices = []
+
+                cps = resp.xpath('ClosingPrice/cp')
+                for cp in cps:
+                    closingPrices.append (ClosingPrice(cp))
                 return closingPrices
 
-        def dailyTimeAndSales(self, conId):
+        def getDailyTimeAndSales(self, conId):
                 req = self.buildDataRequest( self.TIME_SALES_INFO_URL,
                                              {"conID":conId})
-                resp = self.sendDataRequest(req)
+                resp = self.sendTextRequest(req)
+                ts = resp.split('\n')
                 tSales = []
+
+                for t in ts:
+                    if t != "":
+                        tSales.append (TimeSale(t))
                 return tSales
 

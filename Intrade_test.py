@@ -135,8 +135,12 @@ class TestIntrade(unittest.TestCase):
         orders = n.getOpenOrders()
         self.assertEqual(len(orders), 0)
 
-    def test_get_tradesForUser(self):
-        pass
+    def test_get_trades(self):
+        n = Intrade(self.memNum, self.pw)
+
+        trades = n.getTrades(contractId='331374')
+
+        self.assertEqual(len(trades), 4)
         
     def test_cancel_AllInContract_invalid_conId(self): 
         n = Intrade(self.memNum, self.pw)
@@ -314,6 +318,60 @@ class TestIntrade(unittest.TestCase):
             self.assertEqual(p.conId, 331374)
             self.assertEqual(p.quantity, -7)
 
+    def test_get_messages(self):
+        n = Intrade(self.memNum, self.pw)
+
+        msgs = n.getMessages()
+        self.assertEqual(len(msgs), 4)
+
+
+    def test_get_check_messages(self):
+        n = Intrade(self.memNum, self.pw)
+        
+        msgs = n.checkMessages()
+        self.assertEqual(msgs, 0)
+
+
+    def test_get_market_data(self):
+        n = Intrade(self.memNum, self.pw)
+
+        md = n.getMarketData()
+        
+
+    def test_get_market_data_in_event_class(self):
+        n = Intrade(self.memNum, self.pw)
+
+        ec = n.getMarketDataByEventClass('67') #Learn_Financial
+
+    def test_get_price_info(self):
+        n = Intrade(self.memNum, self.pw)
+
+        cb = n.getPriceInfo(['331374',])
+
+        
+
+    def test_get_contract_info(self):
+        n = Intrade(self.memNum, self.pw)
+
+        ci = n.getContractInfo(['331374',])
+
+    def test_get_closing_price(self):
+        n = Intrade(self.memNum, self.pw)
+
+        cp = n.getClosingPrice('331374')
+
+
+    def test_get_time_and_sales(self):
+        n = Intrade(self.memNum, self.pw)
+
+        sales = n.getDailyTimeAndSales('331374');
+
+    
+    def test_market_data(self):
+        n = Intrade(self.memNum, self.pw)
+
+        md = n.getMarketData()
+        
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(TestIntrade)

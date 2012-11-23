@@ -42,6 +42,31 @@ class TestIntrade(unittest.TestCase):
         orders = n.getOpenOrders()
         self.assertEqual(len(orders), 0)
 
+    def test_get_open_orders_oids(self):
+        n = Intrade(self.memNum, self.pw)
+        
+        orders = []
+        orders.append( Order(conId='331374',side='B', limitPrice='.5',quantity='5') )
+        resp = n.multiOrderRequest(orders, True)
+
+        self.assertEqual(len(resp), 1)
+
+        for o in resp:
+            self.assertTrue(o.success)
+
+        time.sleep(1)
+
+        os = n.getOrdersByOrderId([resp[0].orderId,])
+        self.assertEqual(len(os), 1)
+
+        r = n.cancelAllOrders()
+        self.assertTrue(r.didCancel)
+
+        time.sleep(1)
+
+        orders = n.getOpenOrders()
+        self.assertEqual(len(orders), 0)
+
     def test_put_MOR_single_order(self):
         n = Intrade(self.memNum, self.pw)
         
@@ -64,6 +89,7 @@ class TestIntrade(unittest.TestCase):
         
         orders = n.getOpenOrders()
         self.assertEqual(len(orders), 0)
+
         
     def test_put_MOR_multi_order(self):
         n = Intrade(self.memNum, self.pw)
@@ -273,6 +299,16 @@ class TestIntrade(unittest.TestCase):
         ps = n.getPositions()
 
         self.assertEqual(len(ps), 1)
+
+        if len(ps):
+            p = ps[0]
+            self.assertEqual(p.conId, 331374)
+            self.assertEqual(p.quantity, -7)
+
+
+        ps = n.getPositions('331374')
+        self.assertEqual(len(ps), 1)
+
         if len(ps):
             p = ps[0]
             self.assertEqual(p.conId, 331374)

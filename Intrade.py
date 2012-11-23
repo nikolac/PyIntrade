@@ -526,7 +526,7 @@ class Intrade:
                         os.append( OpenOrder(order)  )
                 return os
 
-        def getOrdersForUser(self, oids):
+        def getOrdersByOrderId(self, oids):
                 op = 'getOrdersForUser'
                 params = []
                 
@@ -536,6 +536,10 @@ class Intrade:
                 
                 req = self.buildRequest(op, params)
                 resp = self.sendRequest(self.TRADE_URL, req)
+                print
+                pXml(req)
+                print
+                pXml(resp)
                 os = []
                 
                 orders = resp.xpath('order')

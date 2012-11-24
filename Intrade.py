@@ -1,6 +1,5 @@
 import urllib, time, uuid
 from lxml import etree
-from lxml import objectify
 
 def _getXmlStr(x):
         try:
@@ -298,14 +297,37 @@ class OrderBook:
                         
 class PriceContractInfo:
         def __init__(self, resp):
-                self.close = float(resp.attrib['close'])
+                if resp.attrib.has_key('close'):
+                    self.close = float(resp.attrib['close'])
+                else:
+                    self.close = -1
+
+
                 self.conId = int(resp.attrib['conID'])
-                self.lastTradePrice = float(resp.attrib['lstTrdPrc'])
-                self.lastTradeTime = long(resp.attrib['lstTrdTme'])
+
+                if resp.attrib.has_key('lstTrdPrc'):
+                    self.lastTradePrice = float(resp.attrib['lstTrdPrc'])
+                else:
+                    self.lastTradePrice = -1
+
+                if resp.attrib.has_key('lstTrdTme'):
+                    self.lastTradeTime = long(resp.attrib['lstTrdTme'])
+                else:
+                    self.lastTradeTime = -1
+
                 self.state = resp.attrib['state']
                 self.volume = int(resp.attrib['vol'])
-                self.symbol = resp.xpath('symbol')[0].text
-                self.orderBook = OrderBook( resp.xpath('orderBook')[0] )
+
+                if len(resp.xpath('symbol')) > 0:
+                    self.symbol = resp.xpath('symbol')[0].text
+                else:
+                    self.symbol = ""
+
+                o = resp.xpath('orderBook')
+                if len(o) > 0:
+                    self.orderBook = OrderBook( o[0] )
+                else:
+                    self.orderBook = None
 
 class ContractBookInfo:
         def __init__(self, resp):
@@ -319,15 +341,41 @@ class ContractBookInfo:
 class ContractInfo:
         def __init__(self, resp):
                 self.ccy = resp.attrib['ccy']
-                self.close = float(resp.attrib['close'])
                 self.conId = int(resp.attrib['conID'])
-                self.dayhi = float(resp.attrib['dayhi'])
-                self.daylo = float(resp.attrib['daylo'])
-                self.dayvol = int(resp.attrib['dayvol'])
+                if resp.attrib.has_key('close'):
+                    self.close = float(resp.attrib['close'])
+                else:
+                    self.close = -1
+
+                
+                if resp.attrib.has_key('dayhi'):
+                    self.dayhi = float(resp.attrib['dayhi'])
+                else:
+                    self.dayhi = -1
+
+                if resp.attrib.has_key('daylo'):
+                    self.daylo = float(resp.attrib['daylo'])
+                else:
+                    self.daylo = -1
+
+                if resp.attrib.has_key('dayvol'):    
+                    self.dayvol = int(resp.attrib['dayvol'])
+                else:
+                    self.dayvol = -1
+
                 self.lifehi = float(resp.attrib['lifehi'])
                 self.lifelo = float(resp.attrib['lifelo'])
-                self.lstTrdPrc = float(resp.attrib['lstTrdPrc'])
-                self.lstTrdTme = long(resp.attrib['lstTrdTme'])
+                
+                if resp.attrib.has_key('lastTrdPrc'):
+                    self.lstTrdPrc = float(resp.attrib['lstTrdPrc'])
+                else:
+                    self.lstTrdPrc = -1
+
+                if resp.attrib.has_key('lstTrdTme'):   
+                    self.lstTrdTme = long(resp.attrib['lstTrdTme'])
+                else:
+                    self.lstTrdTme = -1
+
                 self.maxMarginPrice = float(resp.attrib['maxMarginPrice'])
                 self.minMarginPrice = float(resp.attrib['minMarginPrice'])
                 self.state = resp.attrib['state']
@@ -352,6 +400,16 @@ class ContractInfo:
                 else:
                     self.marginGroupId = -1
                 self.symbol = resp.xpath('symbol')[0].text
+
+                if resp.attrib.has_key('expiryTime'):
+                    self.expiryTime = long(resp.attrib['expiryTime'])
+                else:
+                    self.expiryTime = -1
+
+                if resp.attrib.has_key('expiryPrice'):
+                    self.expiryPrice = float(resp.attrib['expiryPrice'])
+                else:
+                    self.expiryPrice = -1
                 
                 
 class ClosingPrice:

@@ -35,23 +35,19 @@ class IntradeSession:
 	def refreshContractInfo(self):
 		self.contractInfo = self.n.getContractInfo([self.contract.id,])[0]
 		
-	
 	def isExpired(self):
 		return self.contractInfo.state == 'S'
 		
-
 	def getExpirationTime(self):
 		return self.contractInfo.expiryTime
 		
 
 	def getExpirationPrice(self):
 		return self.contractInfo.expiryPrice
-		
 
 	def isClosed(self):
 		self.refreshContractInfo()
 		return self.isExpired()
-		
 
 	def isOpen(self):
 		return not self.isClosed()
@@ -78,7 +74,6 @@ class IntradeSession:
 			self.priceInfo = self.n.getPriceInfo([self.contract.id,]).priceContractInfos[0]
 
 
-
 	def getTime(self):
 		self.timeDelay =  d.n.getIntradeTime() - long(time.time()*1000)
 		return self.n.getIntradeTime()
@@ -95,7 +90,6 @@ class IntradeSession:
 
 		return "Market Closed!"
 
-	
 
 	def buy(self):
 		targetPrice = self.getBuyPrice()
@@ -151,7 +145,6 @@ class DowDailyEvent(IntradeSession):
 		ec = self.getEventClass('67')
 		todayDowName = self.getTodayEventName()
 
-		
 		for eg in ec.eventGroups:
 			for e in eg.events:
 				if todayDowName in e.name:
@@ -219,12 +212,7 @@ if __name__=="__main__":
 	 d= DowMonthlyCloseHigherSession('10014', 'intrade1')
 	 print d.contractInfo
 	 print d.getEventName()
-	 print d.isExpired()
-	 print d.getExpirationTime()
-	 print d.getExpirationPrice()
 	 print d.isClosed()
-	 print d.getTime() - long(time.time()*1000)
-	 print d.getTime() - d.getAdjustedTime()  
 	 print 'Bid:',d.getLatestBid()
 	 print 'Offer:',d.getLatestAsk()
 	 print 'Latest Price:',d.getLatestPrice()

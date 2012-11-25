@@ -249,5 +249,5 @@ if __name__=="__main__":
 	 ts = d.getTimeAndSales()
 
 	 for t in ts:
-	 	print t 
+	 	print "\t%s" % (t) 
 	 

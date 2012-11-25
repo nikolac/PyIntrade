@@ -480,6 +480,7 @@ class ClosingPrice:
 
 class TimeSale:
         def __init__(self, resp):
+                self.resp = resp
                 ps = resp.split(',')
                 self.timestamp = long(ps[0])
                 self.date = ps[1].strip()
@@ -487,12 +488,7 @@ class TimeSale:
                 self.quantity = int(ps[3])
 
         def __str__(self):
-            return "timestamp=%s,date=%s,price=%s,quantity=%s" % (
-                    self.timestamp
-                    ,self.date
-                    ,self.price
-                    ,self.quantity
-                )
+            return self.resp
                 
 class CancelResponse:
         def __init__(self, resp):

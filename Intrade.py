@@ -746,7 +746,7 @@ class Intrade:
                 resp = self.sendDataRequest(req)
                 return EventClass(resp)
 
-        def getPriceInfo(self, conIds, timestamp='', depth = 5):
+        def getPriceInfo(self, conIds, timestamp='', depth = 1):
                 args = {"depth":depth, 'id' : conIds}
                 if timestamp != "":
                         args["timestamp"] = timestamp 
@@ -789,3 +789,13 @@ class Intrade:
                         tSales.append (TimeSale(t))
                 return tSales
 
+        def getIntradeTime(self):
+            op = 'getGSXToday'
+            params = {
+                    "sessionData": self.sessionData,
+                    "checkMessages": "true"
+                    }
+            req = self.buildRequest(op, params)
+            resp = self.sendRequest(self.TRADE_URL, req)
+
+            return long(resp.attrib['timestamp'])

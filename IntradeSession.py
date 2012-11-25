@@ -10,7 +10,9 @@ class IntradeSession:
 		self.event = None
 		self.contract = None
 		self.contractInfo = None
-		self.prices = None
+		self.priceInfo = None
+		self.timeAndSales = None
+		self.positions = []
 
 	def getEventName(self):
 		if self.event:
@@ -28,21 +30,56 @@ class IntradeSession:
 		if self.contract:
 			self.contractInfo = self.n.getContractInfo([self.contract.id,])[0]
 		
-	def refreshPrices(self):
-		if self.contract:
-			self.prices = self.n.getPriceInfo([self.contract.id,])
-
+	
 	def isExpired(self):
 		if self.contractInfo:
 			return self.contractInfo.state == 'S'
+		else:
+			return True
 
 	def getExpirationTime(self):
 		if self.contractInfo:
 			return self.contractInfo.expiryTime
+		else:
+			return -1
 
 	def getExpirationPrice(self):
 		if self.contractInfo:
 			return self.contractInfo.expiryPrice
+		else:
+			return -1
+
+	def isClosed(self):
+		self.refreshContractInfo()
+		if self.contractInfo:
+			return self.isExpired()
+		else:
+			return True
+
+	def isOpen(self):
+		return not self.isClosed()
+
+	def refreshPositions(self):
+		if self.isOpen():
+			self.positions = self.n.getPositions(self.contract.id)
+			return True
+		else:
+			return False
+
+	def placeOrder(self, price, quantity):
+		if self.isOpen():
+			return False
+		else:
+			return False
+
+	def refreshTimeAndSales(self):
+		if self.isOpen():
+			self.timeAndSales = self.n.getDailyTimeAndSales(self.contract.id)
+
+	def refreshPriceInfo(self):
+		if self.isOpen():
+			self.priceInfo = self.n.getPriceInfo([self.contract.id,])
+
 
 class DowDailySession(IntradeSession):
 	def __init__(self, memNum, pw):
@@ -54,7 +91,7 @@ class DowDailySession(IntradeSession):
 		ec = self.getEventClass('67')
 		todayDowName = self.getTodayEventName()
 
-
+		
 		for eg in ec.eventGroups:
 			for e in eg.events:
 				if todayDowName in e.name:
@@ -66,13 +103,72 @@ class DowDailySession(IntradeSession):
 
 class DowCloseHigherSession(DowDailySession):
 	def __init__(self, memNum, pw):
-		DowSession.__init__(self,memNum, pw)
+		DowDailySession.__init__(self,memNum, pw)
 
-		for c in self.event.contracts:
-			if 'HIGHER' in c.name:
-				self.contract = c
-				self.refreshContractInfo()  
-				self.refreshPrices()
+		if self.event:
+			for c in self.event.contracts:
+				if 'HIGHER' in c.name:
+					self.contract = c
+					self.refreshContractInfo()
+
+
+	def startTrading(self):
+		while self.shouldContinue():
+			if self.havePositions():
+				self.sell()
+			else:
+				self.buy()
+
+		return "Market Closed!"
+
+
+	
+	def buy(self):
+		targetPrice = self.getBuyPrice()
+		latestPrice = self.getLatestAsk()
+
+		while latestPrice > targetPrice and self.isOpen():
+			targetPrice = self.getBuyPrice()
+			latestPrice = self.getLatestAsk()
+
+		if self.isOpen():
+			targetQuantity = self.getBuyQuantity(latestPrice)
+			success = self.placeOrder(latestPrice,targetQuantity)
+
+			return success
+		else:
+			return False
+
+
+	def shouldContinue(self):
+		return self.isOpen()
+
+	def sell(self):
+		return
+
+	def getBuyPrice(self):
+		return
+
+	def getBuyQuantity(self, latestPrice):
+		return
+
+	def getSellPrice(self):
+		return
+
+	def getLatestPrice(self):
+		return
+
+	def getLatestBid(self):
+		self.refreshContractInfo()
+
+	def getLatestAsk(self):
+		return
+
+
+
+
+
+
 
 
 
@@ -83,3 +179,6 @@ if __name__=="__main__":
 	 print d.isExpired()
 	 print d.getExpirationTime()
 	 print d.getExpirationPrice()
+	 print d.isClosed()
+	 print d.startTrading()
+	 print d.n.getIntradeTime()

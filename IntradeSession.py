@@ -129,11 +129,11 @@ class IntradeSession:
 
 	def getLatestBid(self):
 		self.refreshPriceInfo()
-		return self.priceInfo.orderBook.bids[0].price
+		return self.priceInfo.orderBook.getLatestBidPrice()
 
 	def getLatestAsk(self):
 		self.refreshPriceInfo()
-		return self.priceInfo.orderBook.offers[0].price
+		return self.priceInfo.orderBook.getLatestOfferPrice()
 
 class DowDailyEvent(IntradeSession):
 	def __init__(self, memNum, pw):

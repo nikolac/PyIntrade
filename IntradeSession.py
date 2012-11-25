@@ -21,6 +21,8 @@ class IntradeSession:
 		self.timeAndSales = []
 		self.positions = []
 		self.timeDelay = 0
+		self.historicalAsks = []
+		self.historicalBids = []
 
 		self.sessionProfit = 0
 		self.moneyInvested = 0
@@ -144,13 +146,21 @@ class IntradeSession:
 
 	def getLatestBid(self):
 		self.refreshPriceInfo()
-		return self.priceInfo.orderBook.getLatestBidPrice()
+		bidPrice =  self.priceInfo.orderBook.getLatestBidPrice()
+		if bidPrice > 0:
+			self.historicalBids.append( (time.time(), bidPrice))
+		return bidPrice
 
 	def getLatestAsk(self):
 		self.refreshPriceInfo()
-		return self.priceInfo.orderBook.getLatestOfferPrice()
+		askPrice =  self.priceInfo.orderBook.getLatestOfferPrice()
 
-	def getCash(self):
+		if askPrice > 0:
+			self.historicalAsks.append((time.time(), askPrice))
+
+		return askPrice
+
+	def getAvailableCash(self):
 		return self.getBalance().available
 
 	def getInvested(self):
@@ -159,6 +169,15 @@ class IntradeSession:
 	def getBalance(self):
 		return self.n.getBalance()
 
+	def getPositions(self):
+		return self.positions
+
+	def getPositionsValue(self):
+		totalVal = 0
+		for p in self.positions:
+			totalVal = totalVal + p.trueTotalCost
+
+		return totalVal
 
 
 
@@ -229,6 +248,7 @@ class DowMonthlyCloseHigherSession(DowMonthlyEvent):
 			if 'ABOVE 13000' in c.name:
 				self.contract = c
 				self.refreshContractInfo()
+				self.refreshPositions()
 
 		if not self.contract:
 			raise IntradeSessionError('1',"Contract does not exist")
@@ -243,11 +263,17 @@ if __name__=="__main__":
 	 print 'Bid:',d.getLatestBid()
 	 print 'Offer:',d.getLatestAsk()
 	 print 'Latest Price:',d.getLatestPrice()
-	 print 'Get Cash:', d.getCash()
+	 print 'Get Cash:', d.getAvailableCash()
 	 print 'Get Invested:', d.getInvested()
-	 print "Time and Sales:"
-	 ts = d.getTimeAndSales()
 
+	 
+	 print "Time and Sales:"
+
+	 ts = d.getTimeAndSales()
 	 for t in ts:
 	 	print "\t%s" % (t) 
+
+	 print d.getPositions()[0]
+
+	
 	 

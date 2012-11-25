@@ -71,6 +71,9 @@ class Position:
 
         def isShort(self):
             return self.quantity < 0
+
+        def averageCost(self):
+            return self.totalCost / self.quantity
              
 class Balance:
         def __init__(self, resp):

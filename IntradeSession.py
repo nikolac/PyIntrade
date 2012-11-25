@@ -2,6 +2,13 @@ from Intrade import *
 import time
 import datetime
 
+class IntradeSessionError(Exception):
+	def __init__(self, cd, msg):
+		self.cd = cd
+		self.msg = msg
+
+	def __str__(self):
+		return "[%s] %s" %(self.cd, self.msg)
 
 class IntradeSession:
 	def __init__(self, memNum, pw):
@@ -13,12 +20,11 @@ class IntradeSession:
 		self.priceInfo = None
 		self.timeAndSales = None
 		self.positions = []
+		self.timeDelay = 0
 
 	def getEventName(self):
-		if self.event:
-			return self.event.name
-		else:
-			return ""
+		return self.event.name
+		
 
 	def getEventClass(self, classId):
 		return self.n.getMarketDataByEventClass(classId)
@@ -27,34 +33,25 @@ class IntradeSession:
 		self.md = self.n.getMarketData()
 
 	def refreshContractInfo(self):
-		if self.contract:
-			self.contractInfo = self.n.getContractInfo([self.contract.id,])[0]
+		self.contractInfo = self.n.getContractInfo([self.contract.id,])[0]
 		
 	
 	def isExpired(self):
-		if self.contractInfo:
-			return self.contractInfo.state == 'S'
-		else:
-			return True
+		return self.contractInfo.state == 'S'
+		
 
 	def getExpirationTime(self):
-		if self.contractInfo:
-			return self.contractInfo.expiryTime
-		else:
-			return -1
+		return self.contractInfo.expiryTime
+		
 
 	def getExpirationPrice(self):
-		if self.contractInfo:
-			return self.contractInfo.expiryPrice
-		else:
-			return -1
+		return self.contractInfo.expiryPrice
+		
 
 	def isClosed(self):
 		self.refreshContractInfo()
-		if self.contractInfo:
-			return self.isExpired()
-		else:
-			return True
+		return self.isExpired()
+		
 
 	def isOpen(self):
 		return not self.isClosed()
@@ -78,39 +75,16 @@ class IntradeSession:
 
 	def refreshPriceInfo(self):
 		if self.isOpen():
-			self.priceInfo = self.n.getPriceInfo([self.contract.id,])
+			self.priceInfo = self.n.getPriceInfo([self.contract.id,]).priceContractInfos[0]
 
 
-class DowDailySession(IntradeSession):
-	def __init__(self, memNum, pw):
-		IntradeSession.__init__(self, memNum, pw)
-		self.event = self.getDowEvent()
 
+	def getTime(self):
+		self.timeDelay =  d.n.getIntradeTime() - long(time.time()*1000)
+		return self.n.getIntradeTime()
 
-	def getDowEvent(self):
-		ec = self.getEventClass('67')
-		todayDowName = self.getTodayEventName()
-
-		
-		for eg in ec.eventGroups:
-			for e in eg.events:
-				if todayDowName in e.name:
-					return e
-
-	def getTodayEventName(self):
-		d = datetime.datetime.now()
-		return "Daily DJIA Close. " + d.strftime('%a %b %d 20%y')
-
-class DowCloseHigherSession(DowDailySession):
-	def __init__(self, memNum, pw):
-		DowDailySession.__init__(self,memNum, pw)
-
-		if self.event:
-			for c in self.event.contracts:
-				if 'HIGHER' in c.name:
-					self.contract = c
-					self.refreshContractInfo()
-
+	def getAdjustedTime(self):
+		return long(time.time()*1000) + self.timeDelay
 
 	def startTrading(self):
 		while self.shouldContinue():
@@ -121,8 +95,8 @@ class DowCloseHigherSession(DowDailySession):
 
 		return "Market Closed!"
 
-
 	
+
 	def buy(self):
 		targetPrice = self.getBuyPrice()
 		latestPrice = self.getLatestAsk()
@@ -156,29 +130,102 @@ class DowCloseHigherSession(DowDailySession):
 		return
 
 	def getLatestPrice(self):
-		return
+		self.refreshContractInfo()
+		return self.contractInfo.lstTrdPrc
 
 	def getLatestBid(self):
-		self.refreshContractInfo()
+		self.refreshPriceInfo()
+		return self.priceInfo.orderBook.bids[0].price
 
 	def getLatestAsk(self):
-		return
+		self.refreshPriceInfo()
+		return self.priceInfo.orderBook.offers[0].price
+
+class DowDailyEvent(IntradeSession):
+	def __init__(self, memNum, pw):
+		IntradeSession.__init__(self, memNum, pw)
+		self.event = self.getDowEvent()
+
+
+	def getDowEvent(self):
+		ec = self.getEventClass('67')
+		todayDowName = self.getTodayEventName()
+
+		
+		for eg in ec.eventGroups:
+			for e in eg.events:
+				if todayDowName in e.name:
+					return e
+
+		raise IntradeSessionError('0',"Event (%s) does not exist" % (todayDowName))
+
+	def getTodayEventName(self):
+		d = datetime.datetime.now()
+		return "Daily DJIA Close. " + d.strftime('%a %b %d 20%y')
+
+class DowDailyCloseHigherSession(DowDailyEvent):
+	def __init__(self, memNum, pw):
+		DowDailyEvent.__init__(self,memNum, pw)
+
+		for c in self.event.contracts:
+			if 'HIGHER' in c.name:
+				self.contract = c
+				self.refreshContractInfo()
+
+		if not self.contract:
+			raise IntradeSessionError('1',"Contract does not exist")
 
 
 
+class DowMonthlyEvent(IntradeSession):
+	def __init__(self,memNum,pw):
+		IntradeSession.__init__(self, memNum, pw)
+		self.event = self.getDowEvent()
+
+	def getDowEvent(self):
+		ec = self.getEventClass('67')
+		monthDowName = self.getMonthEventName()
+
+		
+		for eg in ec.eventGroups:
+			for e in eg.events:
+				if monthDowName in e.name:
+					return e
+		raise IntradeSessionError('0',"Event (%s) does not exist" % (monthDowName))
+
+	def getMonthEventName(self):
+		d = datetime.datetime.now()
+		return d.strftime('%B %Y') + " DJIA Close"
 
 
+class DowMonthlyCloseHigherSession(DowMonthlyEvent):
+	def __init__(self, memNum, pw):
+		DowMonthlyEvent.__init__(self,memNum, pw)
 
+		for c in self.event.contracts:
+			if 'ABOVE 13000' in c.name:
+				self.contract = c
+				self.refreshContractInfo()
+				self.refreshPriceInfo()
+
+		if not self.contract:
+			raise IntradeSessionError('1',"Contract does not exist")
 
 
 
 if __name__=="__main__":
-	 d = DowCloseHigherSession('10014', 'intrade1')
+	 
 
+	 d= DowMonthlyCloseHigherSession('10014', 'intrade1')
+	 print d.contractInfo
 	 print d.getEventName()
 	 print d.isExpired()
 	 print d.getExpirationTime()
 	 print d.getExpirationPrice()
 	 print d.isClosed()
-	 print d.startTrading()
-	 print d.n.getIntradeTime()
+	 print d.getTime() - long(time.time()*1000)
+	 print d.getTime() - d.getAdjustedTime()  
+	 print 'Bid:',d.getLatestBid()
+	 print 'Offer:',d.getLatestAsk()
+	 print 'Latest Price:',d.getLatestPrice()
+	 

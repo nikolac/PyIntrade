@@ -1,6 +1,5 @@
 import urllib, time, uuid
 from lxml import etree
-import pprint
 
 def _getXmlStr(x):
         try:
@@ -53,6 +52,7 @@ class IntradeResponseError(IntradeError):
                              
 class Position:
         def __init__(self, position):
+                self.resp = position
                 self.conId = int(position.attrib['conID'])
                 self.quantity =int( position.xpath('quantity')[0].text)
                 self.totalCost =float( position.xpath('totalCost')[0].text)
@@ -64,6 +64,13 @@ class Position:
                 self.offerAmt = float(position.xpath('offerAmt')[0].text)
                 self.offerQty = int(position.xpath('offerQty')[0].text)
                 self.netPL = float(position.xpath('netPL')[0].text)
+
+
+        def __str__(self):
+            return _getXmlStr(self.resp)
+
+        def isShort(self):
+            return self.quantity < 0
              
 class Balance:
         def __init__(self, resp):
@@ -223,7 +230,6 @@ class Trade:
 
 class Contract:
         def __init__(self, resp):
-                self.resp = resp
                 self.ccy= resp.attrib['ccy']
                 self.id = int(resp.attrib['id'])
                 self.inRunning = resp.attrib['inRunning']
@@ -233,10 +239,111 @@ class Contract:
                 self.type = resp.attrib['type']
                 self.name = resp.xpath('name')[0].text
                 self.symbol = resp.xpath('symbol')[0].text
-                self.totalVolume = int(resp.xpath('totalVolume')[0].text)
+                tv = resp.xpath('totalVolume')[0].text
+                if tv[-1:] == 'k':
+                    self.totalVolume = float(tv[:-1]) *1000
+                else:
+                    self.totalVolume = float(tv)
 
         def __str__(self):
             return _getXmlStr(self.resp)
+
+        def isOpen(self):
+            return self.state == 'O'
+
+        def isClosed(self):
+            return not self.isOpen()
+
+        def isExpired(self):
+            return self.state == 'S'
+
+class ContractInfo:
+        def __init__(self, resp):
+                self.resp = resp
+                self.ccy = resp.attrib['ccy']
+                self.conId = int(resp.attrib['conID'])
+
+                if resp.attrib.has_key('close'):
+                    self.close = float(resp.attrib['close'])
+                else:
+                    self.close = -1
+
+                
+                if resp.attrib.has_key('dayhi') and resp.attrib['dayhi'] != '-':
+                    self.dayhi = float(resp.attrib['dayhi'])
+                else:
+                    self.dayhi = -1
+
+                if resp.attrib.has_key('daylo') and resp.attrib['daylo'] != '-':
+                    self.daylo = float(resp.attrib['daylo'])
+                else:
+                    self.daylo = -1
+
+                if resp.attrib.has_key('dayvol'):    
+                    self.dayvol = int(resp.attrib['dayvol'])
+                else:
+                    self.dayvol = -1
+
+                self.lifehi = float(resp.attrib['lifehi'])
+                self.lifelo = float(resp.attrib['lifelo'])
+                
+                if resp.attrib.has_key('lstTrdPrc') and resp.attrib['lstTrdPrc'] != '-':
+                    self.lstTrdPrc = float(resp.attrib['lstTrdPrc'])
+                else:
+                    self.lstTrdPrc = -1
+
+                if resp.attrib.has_key('lstTrdTme')  and resp.attrib['lstTrdTme'] != '-':   
+                    self.lstTrdTme = long(resp.attrib['lstTrdTme'])
+                else:
+                    self.lstTrdTme = -1
+
+                self.maxMarginPrice = float(resp.attrib['maxMarginPrice'])
+                self.minMarginPrice = float(resp.attrib['minMarginPrice'])
+                self.state = resp.attrib['state']
+                self.tickSize = float(resp.attrib['tickSize'])
+                self.tickValue = float(resp.attrib['tickValue'])
+                tv = resp.attrib['totalvol']
+                if tv[-1:] == 'k':
+                    self.totalVolume = float(tv[:-1]) *1000
+                else:
+                    self.totalVolume = float(tv)
+
+                self.type = resp.attrib['type']
+
+                if resp.attrib.has_key('marginLinked'):
+                    self.marginLinked = resp.attrib['marginLinked']
+                else:
+                    self.marginLinked = ''
+                
+
+                if resp.attrib.has_key('marginGroupId'):
+                        self.marginGroupId = resp.attrib['marginGroupId']
+                else:
+                    self.marginGroupId = -1
+                self.symbol = resp.xpath('symbol')[0].text
+
+                if resp.attrib.has_key('expiryTime'):
+                    self.expiryTime = long(resp.attrib['expiryTime'])
+                else:
+                    self.expiryTime = -1
+
+                if resp.attrib.has_key('expiryPrice'):
+                    self.expiryPrice = float(resp.attrib['expiryPrice'])
+                else:
+                    self.expiryPrice = -1
+                
+        def __str__(self):
+                return _getXmlStr(self.resp)
+
+        def isOpen(self):
+            return self.state == 'O'
+
+        def isClosed(self):
+            return not self.isOpen()
+
+        def isExpired(self):
+            return self.state == 'S' 
+        
 class Event:
         def __init__(self, resp):
                 self.endDate = resp.attrib['EndDate']
@@ -361,83 +468,7 @@ class ContractBookInfo:
         def __str__(self):
             return _getXmlStr(self.resp)
 
-class ContractInfo:
-        def __init__(self, resp):
-                self.resp = resp
-                self.ccy = resp.attrib['ccy']
-                self.conId = int(resp.attrib['conID'])
-                if resp.attrib.has_key('close'):
-                    self.close = float(resp.attrib['close'])
-                else:
-                    self.close = -1
 
-                
-                if resp.attrib.has_key('dayhi') and resp.attrib['dayhi'] != '-':
-                    self.dayhi = float(resp.attrib['dayhi'])
-                else:
-                    self.dayhi = -1
-
-                if resp.attrib.has_key('daylo') and resp.attrib['daylo'] != '-':
-                    self.daylo = float(resp.attrib['daylo'])
-                else:
-                    self.daylo = -1
-
-                if resp.attrib.has_key('dayvol'):    
-                    self.dayvol = int(resp.attrib['dayvol'])
-                else:
-                    self.dayvol = -1
-
-                self.lifehi = float(resp.attrib['lifehi'])
-                self.lifelo = float(resp.attrib['lifelo'])
-                
-                if resp.attrib.has_key('lstTrdPrc') and resp.attrib['lstTrdPrc'] != '-':
-                    self.lstTrdPrc = float(resp.attrib['lstTrdPrc'])
-                else:
-                    self.lstTrdPrc = -1
-
-                if resp.attrib.has_key('lstTrdTme')  and resp.attrib['lstTrdTme'] != '-':   
-                    self.lstTrdTme = long(resp.attrib['lstTrdTme'])
-                else:
-                    self.lstTrdTme = -1
-
-                self.maxMarginPrice = float(resp.attrib['maxMarginPrice'])
-                self.minMarginPrice = float(resp.attrib['minMarginPrice'])
-                self.state = resp.attrib['state']
-                self.tickSize = float(resp.attrib['tickSize'])
-                self.tickValue = float(resp.attrib['tickValue'])
-                tv = resp.attrib['totalvol']
-                if tv[-1:] == 'k':
-                    self.totalVolume = float(tv[:-1]) *1000
-                else:
-                    self.totalVolume = float(tv)
-
-                self.type = resp.attrib['type']
-
-                if resp.attrib.has_key('marginLinked'):
-                    self.marginLinked = resp.attrib['marginLinked']
-                else:
-                    self.marginLinked = ''
-                
-
-                if resp.attrib.has_key('marginGroupId'):
-                        self.marginGroupId = resp.attrib['marginGroupId']
-                else:
-                    self.marginGroupId = -1
-                self.symbol = resp.xpath('symbol')[0].text
-
-                if resp.attrib.has_key('expiryTime'):
-                    self.expiryTime = long(resp.attrib['expiryTime'])
-                else:
-                    self.expiryTime = -1
-
-                if resp.attrib.has_key('expiryPrice'):
-                    self.expiryPrice = float(resp.attrib['expiryPrice'])
-                else:
-                    self.expiryPrice = -1
-                
-        def __str__(self):
-                return _getXmlStr(self.resp)
-        
                 
 class ClosingPrice:
         def __init__(self, resp):
@@ -806,9 +837,9 @@ class Intrade:
 
         def getDailyTimeAndSales(self, conId):
                 req = self.buildDataRequest( self.TIME_SALES_INFO_URL,
-                                             {"conID":conId})
+                                             {"conID":str(conId)})
                 resp = self.sendTextRequest(req)
-                ts = resp.split('\n')
+                ts = resp.splitlines()
                 tSales = []
 
                 for t in ts:

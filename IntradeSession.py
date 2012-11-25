@@ -18,9 +18,15 @@ class IntradeSession:
 		self.contract = None
 		self.contractInfo = None
 		self.priceInfo = None
-		self.timeAndSales = None
+		self.timeAndSales = []
 		self.positions = []
 		self.timeDelay = 0
+
+		self.sessionProfit = 0
+		self.moneyInvested = 0
+
+		self.MAX_PERCENT_INVEST = 10
+		
 
 	def getEventName(self):
 		return self.event.name
@@ -36,7 +42,8 @@ class IntradeSession:
 		self.contractInfo = self.n.getContractInfo([self.contract.id,])[0]
 		
 	def isExpired(self):
-		return self.contractInfo.state == 'S'
+		self.refreshContractInfo()
+		return self.contractInfo.isExpired()
 		
 	def getExpirationTime(self):
 		return self.contractInfo.expiryTime
@@ -47,16 +54,20 @@ class IntradeSession:
 
 	def isClosed(self):
 		self.refreshContractInfo()
-		return self.isExpired()
+		return self.contractInfo.isClosed()
 
 	def isOpen(self):
 		return not self.isClosed()
+
+	def havePositions(self):
+		self.refreshPositions()
+		return len(self.positions) > 0
 
 	def refreshPositions(self):
 		if self.isOpen():
 			self.positions = self.n.getPositions(self.contract.id)
 			return True
-		else:
+		else: 
 			return False
 
 	def placeOrder(self, price, quantity):
@@ -68,6 +79,10 @@ class IntradeSession:
 	def refreshTimeAndSales(self):
 		if self.isOpen():
 			self.timeAndSales = self.n.getDailyTimeAndSales(self.contract.id)
+
+	def getTimeAndSales(self):
+		self.refreshTimeAndSales()
+		return self.timeAndSales
 
 	def refreshPriceInfo(self):
 		if self.isOpen():
@@ -135,6 +150,19 @@ class IntradeSession:
 		self.refreshPriceInfo()
 		return self.priceInfo.orderBook.getLatestOfferPrice()
 
+	def getCash(self):
+		return self.getBalance().available
+
+	def getInvested(self):
+		return self.getBalance().frozen
+
+	def getBalance(self):
+		return self.n.getBalance()
+
+
+
+
+
 class DowDailyEvent(IntradeSession):
 	def __init__(self, memNum, pw):
 		IntradeSession.__init__(self, memNum, pw)
@@ -155,6 +183,8 @@ class DowDailyEvent(IntradeSession):
 	def getTodayEventName(self):
 		d = datetime.datetime.now()
 		return "Daily DJIA Close. " + d.strftime('%a %b %d 20%y')
+
+
 
 class DowDailyCloseHigherSession(DowDailyEvent):
 	def __init__(self, memNum, pw):
@@ -199,7 +229,6 @@ class DowMonthlyCloseHigherSession(DowMonthlyEvent):
 			if 'ABOVE 13000' in c.name:
 				self.contract = c
 				self.refreshContractInfo()
-				self.refreshPriceInfo()
 
 		if not self.contract:
 			raise IntradeSessionError('1',"Contract does not exist")
@@ -207,13 +236,18 @@ class DowMonthlyCloseHigherSession(DowMonthlyEvent):
 
 
 if __name__=="__main__":
-	 
 
-	 d= DowMonthlyCloseHigherSession('10014', 'intrade1')
-	 print d.contractInfo
-	 print d.getEventName()
-	 print d.isClosed()
+	 d = DowMonthlyCloseHigherSession('10014', 'intrade1')
+	 print "Event:",d.getEventName()
+	 print "Contract Closed:",d.isClosed()
 	 print 'Bid:',d.getLatestBid()
 	 print 'Offer:',d.getLatestAsk()
 	 print 'Latest Price:',d.getLatestPrice()
+	 print 'Get Cash:', d.getCash()
+	 print 'Get Invested:', d.getInvested()
+	 print "Time and Sales:"
+	 ts = d.getTimeAndSales()
+
+	 for t in ts:
+	 	print t 
 	 

@@ -1,5 +1,6 @@
 import urllib, time, uuid
 from lxml import etree
+import pprint
 
 def _getXmlStr(x):
         try:
@@ -222,6 +223,7 @@ class Trade:
 
 class Contract:
         def __init__(self, resp):
+                self.resp = resp
                 self.ccy= resp.attrib['ccy']
                 self.id = int(resp.attrib['id'])
                 self.inRunning = resp.attrib['inRunning']
@@ -233,6 +235,8 @@ class Contract:
                 self.symbol = resp.xpath('symbol')[0].text
                 self.totalVolume = int(resp.xpath('totalVolume')[0].text)
 
+        def __str__(self):
+            return _getXmlStr(self.resp)
 class Event:
         def __init__(self, resp):
                 self.endDate = resp.attrib['EndDate']
@@ -275,28 +279,29 @@ class MarketData:
 class Offer:
         def __init__(self, resp):
                 self.price = float(resp.attrib['price'])
-                self.quantity = int(resp.quantity['quantity'])
+                self.quantity = int(resp.attrib['quantity'])
 
 class Bid:
         def __init__(self, resp):
                 self.price = float(resp.attrib['price'])
-                self.quantity = int(resp.quantity['quantity'])
+                self.quantity = int(resp.attrib['quantity'])
 
 class OrderBook:
         def __init__(self, resp):
                 self.bids = []
                 self.offers = []
 
-                bs = resp.xpath('bids[0]/bid')
+                bs = resp.xpath('bids/bid')
                 for b in bs:
                         self.bids.append( Bid(b) )
                         
-                ofs = resp.xpath('offers[0]/offer')
+                ofs = resp.xpath('offers/offer')
                 for of in ofs:
                         self.offers.append ( Offer(of) )
                         
 class PriceContractInfo:
         def __init__(self, resp):
+                self.resp = resp
                 if resp.attrib.has_key('close'):
                     self.close = float(resp.attrib['close'])
                 else:
@@ -310,7 +315,7 @@ class PriceContractInfo:
                 else:
                     self.lastTradePrice = -1
 
-                if resp.attrib.has_key('lstTrdTme'):
+                if resp.attrib.has_key('lstTrdTme') and resp.attrib['lstTrdTme'] != '-':
                     self.lastTradeTime = long(resp.attrib['lstTrdTme'])
                 else:
                     self.lastTradeTime = -1
@@ -329,17 +334,24 @@ class PriceContractInfo:
                 else:
                     self.orderBook = None
 
+        def __str__(self):
+            return _getXmlStr(self.resp)
+
 class ContractBookInfo:
         def __init__(self, resp):
+                self.resp = resp
                 self.lastUpdatedTime = long(resp.attrib['lastUpdateTime'])
                 self.priceContractInfos = []
 
                 pis = resp.xpath('contractInfo')
                 for pi in pis:
                         self.priceContractInfos.append( PriceContractInfo(pi) )
-                        
+        def __str__(self):
+            return _getXmlStr(self.resp)
+
 class ContractInfo:
         def __init__(self, resp):
+                self.resp = resp
                 self.ccy = resp.attrib['ccy']
                 self.conId = int(resp.attrib['conID'])
                 if resp.attrib.has_key('close'):
@@ -348,12 +360,12 @@ class ContractInfo:
                     self.close = -1
 
                 
-                if resp.attrib.has_key('dayhi'):
+                if resp.attrib.has_key('dayhi') and resp.attrib['dayhi'] != '-':
                     self.dayhi = float(resp.attrib['dayhi'])
                 else:
                     self.dayhi = -1
 
-                if resp.attrib.has_key('daylo'):
+                if resp.attrib.has_key('daylo') and resp.attrib['daylo'] != '-':
                     self.daylo = float(resp.attrib['daylo'])
                 else:
                     self.daylo = -1
@@ -366,12 +378,12 @@ class ContractInfo:
                 self.lifehi = float(resp.attrib['lifehi'])
                 self.lifelo = float(resp.attrib['lifelo'])
                 
-                if resp.attrib.has_key('lastTrdPrc'):
+                if resp.attrib.has_key('lstTrdPrc') and resp.attrib['lstTrdPrc'] != '-':
                     self.lstTrdPrc = float(resp.attrib['lstTrdPrc'])
                 else:
                     self.lstTrdPrc = -1
 
-                if resp.attrib.has_key('lstTrdTme'):   
+                if resp.attrib.has_key('lstTrdTme')  and resp.attrib['lstTrdTme'] != '-':   
                     self.lstTrdTme = long(resp.attrib['lstTrdTme'])
                 else:
                     self.lstTrdTme = -1
@@ -411,6 +423,9 @@ class ContractInfo:
                 else:
                     self.expiryPrice = -1
                 
+        def __str__(self):
+                return _getXmlStr(self.resp)
+        
                 
 class ClosingPrice:
         def __init__(self, resp):
@@ -746,7 +761,7 @@ class Intrade:
                 resp = self.sendDataRequest(req)
                 return EventClass(resp)
 
-        def getPriceInfo(self, conIds, timestamp='', depth = 1):
+        def getPriceInfo(self, conIds, timestamp='', depth = '1'):
                 args = {"depth":depth, 'id' : conIds}
                 if timestamp != "":
                         args["timestamp"] = timestamp 

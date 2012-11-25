@@ -300,14 +300,14 @@ class OrderBook:
                         self.offers.append ( Offer(of) )
 
         def getLatestBidPrice(self):
-            if len(bids) > 0:
-                return bids[0].price
+            if len(self.bids) > 0:
+                return self.bids[0].price
             else:
                 return -1
 
-        def getLatestAskPrice(self):
-            if len(offers) > 0:
-                return offers[0].price
+        def getLatestOfferPrice(self):
+            if len(self.offers) > 0:
+                return self.offers[0].price
             else:
                 return -1 
                         

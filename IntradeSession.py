@@ -272,6 +272,9 @@ if __name__=="__main__":
 	print "Contract Closed:",d.isClosed()
 
 	d.financialData.printInfo()
+
+	
+
 	
 	
 

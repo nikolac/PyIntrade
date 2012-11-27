@@ -99,11 +99,12 @@ class FinancialDataSet:
 		print self.__data
 
 	def printInfo(self):
-		print "Size: %s\nTimePriceCorr: %s\nMinPrice:%s\nMaxPrice:%s" % (
+		print "Size: %s\nTimePriceCorr: %s\nMinPrice:%s\nMaxPrice:%s \nLastPrice:%s" % (
 			self.size()
 			, self.timePriceCorr()
 			, self.minPrice()
 			, self.maxPrice()
+			, self.lastPrice()
 			)
 
 	def getSliceInTimeRange(self, fromTime = -1, toTime = 9999999999999):
@@ -168,6 +169,9 @@ class FinancialDataSet:
 	def minPriceData(self):
 		i = self.__prices.argmin()
 		return self.getDataAt(i), i
+
+	def lastPrice(self):
+		return self.__prices[-1:][0]
 
 	def maxPriceData(self):
 		i = self.__prices.argmax()

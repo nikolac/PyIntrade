@@ -282,8 +282,10 @@ class ContractInfo:
                 else:
                     self.daylo = -1
 
-                if resp.attrib.has_key('dayvol'):    
-                    self.dayvol = int(resp.attrib['dayvol'])
+                if resp.attrib.has_key('dayvol'): 
+                    dv =    resp.attrib['dayvol']
+                    if dv[-1:]== 'k':
+                        self.dayvol = int(float(dv[:-1])*1000)
                 else:
                     self.dayvol = -1
 
@@ -307,9 +309,9 @@ class ContractInfo:
                 self.tickValue = float(resp.attrib['tickValue'])
                 tv = resp.attrib['totalvol']
                 if tv[-1:] == 'k':
-                    self.totalVolume = float(tv[:-1]) *1000
+                    self.totalVolume = int(float(tv[:-1]) *1000)
                 else:
-                    self.totalVolume = float(tv)
+                    self.totalVolume = int(tv)
 
                 self.type = resp.attrib['type']
 
@@ -490,8 +492,17 @@ class TimeSale:
                 self.price = float(ps[2])
                 self.quantity = int(ps[3])
 
+        def __name__(self):
+            return "TimeSale"
+
+        def toTup(self):
+            return (self.timestamp, self.price, self.quantity)
+
         def __str__(self):
-            return self.resp
+            return "%s, %s, %s, %s" %(self.timestamp
+                , self.date
+                ,self.price
+                ,self.quantity)
                 
 class CancelResponse:
         def __init__(self, resp):
@@ -684,7 +695,7 @@ class Intrade:
                 op = 'getPosForUser'
                 params = { "sessionData": self.sessionData }
                 if contractId != "":
-                        params["contractId"] = contractId
+                        params["contractID"] = str(contractId)
                 req = self.buildRequest(op, params)
                 resp = self.sendRequest(self.TRADE_URL, req)
                 ps = []

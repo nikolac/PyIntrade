@@ -1,6 +1,8 @@
 from Intrade import *
+from FinancialData import *
 import time
 import datetime
+
 
 class IntradeSessionError(Exception):
 	def __init__(self, cd, msg):
@@ -13,13 +15,13 @@ class IntradeSessionError(Exception):
 class IntradeSession:
 	def __init__(self, memNum, pw):
 		self.n = Intrade(memNum,pw)
+		self.financialData = None
 		self.md = None
 		self.event = None
 		self.contract = None
 		self.contractInfo = None
 		self.priceInfo = None
 		self.timeAndSales = []
-		self.positions = []
 		self.timeDelay = 0
 		self.historicalAsks = []
 		self.historicalBids = []
@@ -33,7 +35,6 @@ class IntradeSession:
 	def getEventName(self):
 		return self.event.name
 		
-
 	def getEventClass(self, classId):
 		return self.n.getMarketDataByEventClass(classId)
 
@@ -61,16 +62,15 @@ class IntradeSession:
 	def isOpen(self):
 		return not self.isClosed()
 
-	def havePositions(self):
-		self.refreshPositions()
-		return len(self.positions) > 0
+	def havePosition(self):
+		return self.getPosition() != None
 
-	def refreshPositions(self):
-		if self.isOpen():
-			self.positions = self.n.getPositions(self.contract.id)
-			return True
-		else: 
-			return False
+	def getPosition(self):
+		pos = self.n.getPositions(self.contract.id)
+		if len(pos) > 0:
+			self.position =  pos[0]
+			return self.position
+			
 
 	def placeOrder(self, price, quantity):
 		if self.isOpen():
@@ -79,16 +79,16 @@ class IntradeSession:
 			return False
 
 	def refreshTimeAndSales(self):
-		if self.isOpen():
-			self.timeAndSales = self.n.getDailyTimeAndSales(self.contract.id)
+		
+		self.timeAndSales = self.n.getDailyTimeAndSales(self.contract.id)
+		self.financialData = FinancialDataSet([ t.toTup() for t in self.timeAndSales])
 
 	def getTimeAndSales(self):
 		self.refreshTimeAndSales()
 		return self.timeAndSales
 
 	def refreshPriceInfo(self):
-		if self.isOpen():
-			self.priceInfo = self.n.getPriceInfo([self.contract.id,]).priceContractInfos[0]
+		self.priceInfo = self.n.getPriceInfo([self.contract.id,]).priceContractInfos[0]
 
 
 	def getTime(self):
@@ -100,7 +100,7 @@ class IntradeSession:
 
 	def startTrading(self):
 		while self.shouldContinue():
-			if self.havePositions():
+			if self.havePosition():
 				self.sell()
 			else:
 				self.buy()
@@ -169,15 +169,24 @@ class IntradeSession:
 	def getBalance(self):
 		return self.n.getBalance()
 
-	def getPositions(self):
-		return self.positions
 
-	def getPositionsValue(self):
-		totalVal = 0
-		for p in self.positions:
-			totalVal = totalVal + p.trueTotalCost
+	def getStopLossPrice(self):
+		return -1
 
-		return totalVal
+	def getPositionAvgCost(self):
+		self.position = self.getPosition()
+		if self.position:
+			return self.position.averageCost()
+		else:
+			return -1
+
+	def getTargetPrice(self):
+		self.position = self.getPosition()
+		if self.position:
+			tenPercent = self.getPositionAvgCost() * 1.1
+			return tenPercent
+		else:
+			-1
 
 
 
@@ -213,6 +222,7 @@ class DowDailyCloseHigherSession(DowDailyEvent):
 			if 'HIGHER' in c.name:
 				self.contract = c
 				self.refreshContractInfo()
+				self.refreshTimeAndSales()
 
 		if not self.contract:
 			raise IntradeSessionError('1',"Contract does not exist")
@@ -248,7 +258,7 @@ class DowMonthlyCloseHigherSession(DowMonthlyEvent):
 			if 'ABOVE 13000' in c.name:
 				self.contract = c
 				self.refreshContractInfo()
-				self.refreshPositions()
+				self.refreshTimeAndSales()
 
 		if not self.contract:
 			raise IntradeSessionError('1',"Contract does not exist")
@@ -257,23 +267,22 @@ class DowMonthlyCloseHigherSession(DowMonthlyEvent):
 
 if __name__=="__main__":
 
-	 d = DowMonthlyCloseHigherSession('10014', 'intrade1')
-	 print "Event:",d.getEventName()
-	 print "Contract Closed:",d.isClosed()
-	 print 'Bid:',d.getLatestBid()
-	 print 'Offer:',d.getLatestAsk()
-	 print 'Latest Price:',d.getLatestPrice()
-	 print 'Get Cash:', d.getAvailableCash()
-	 print 'Get Invested:', d.getInvested()
+	d = DowDailyCloseHigherSession('10014', 'intrade1')
+	print "Event:",d.getEventName()
+	print "Contract Closed:",d.isClosed()
+
+	d.financialData.printInfo()
+	
+	
+
+	
+	
+	
+	
+
 
 	 
-	 print "Time and Sales:"
-
-	 ts = d.getTimeAndSales()
-	 for t in ts:
-	 	print "\t%s" % (t) 
-
-	 print d.getPositions()[0]
+	 
 
 	
 	 

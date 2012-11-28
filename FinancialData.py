@@ -27,12 +27,14 @@ class FinancialDataSet:
 
 	def lastPeriodIndex(self):
 		return self.periodSize() - 1
+		
 
 	def lastPeriodPrice(self):
-		return self.priceAtPeriod(self.periodSize() - 1)
+
+		return self.priceAtPeriod(self.lastPeriodIndex())
 
 	def priceAtPeriod(self, i):
-		if i < self.periodSize():
+		if i >= 0 and i < self.periodSize():
 			return self.__pricesByPeriod[i]
 		else:
 			return -1
@@ -44,12 +46,16 @@ class FinancialDataSet:
 		prevP = self.lastPeriodPrice()
 		prevT = self.lastPeriodIndex()
 
-		while ordT > prevT:
+		while prevT < ordT - 1:
 			self.__appendPricePeriod( prevP )
 			prevT = self.lastPeriodIndex()
 
 
-		self.__appendPricePeriod( val )
+		if self.priceAtPeriod(ordT) == -1:
+			self.__appendPricePeriod( val )
+		else:
+			self.__pricesByPeriod[ordT] = val
+			
 		if self.__ema.has_key(ordT):
 			self.__ema.pop(ordT,None)
 
@@ -98,9 +104,20 @@ class FinancialDataSet:
 	def timePriceCorr(self):
 		return corrcoef([self.__times, self.__prices])[0][1]
 
-	def printData(self):
+	def printPeriodData(self):
+		fTime = self.getFirstTime()
+		prev = 0
 		for d in self.__data:
-			print self.__timeToOrd(d[0]), d[0], d[1], self.priceAtPeriod(int(self.__timeToOrd(d[0])))
+			ordT = self.__timeToOrd(d[0])
+			prevT = prev + 1
+
+			while  prevT < ordT:
+				print prevT,'    ','   ', self.priceAtPeriod(prevT)
+				prevT = prevT + 1
+			if ordT != prev:
+				print
+			print ordT,long(d[0] - fTime)/1000, d[1], self.priceAtPeriod(ordT)
+			prev = ordT
 
 
 	def printInfo(self):

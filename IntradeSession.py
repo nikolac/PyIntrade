@@ -271,7 +271,9 @@ if __name__=="__main__":
 	print "Event:",d.getEventName()
 	print "Contract Closed:",d.isClosed()
 
-	d.financialData.printData()
+	d.financialData.printPeriodData()
+
+	
 
 	
 

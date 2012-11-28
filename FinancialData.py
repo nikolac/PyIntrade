@@ -29,10 +29,13 @@ class FinancialDataSet:
 		return self.periodSize() - 1
 
 	def lastPeriodPrice(self):
-		return self.__pricesByPeriod[-1:]
+		return self.priceAtPeriod(self.periodSize() - 1)
 
 	def priceAtPeriod(self, i):
-		return self.__pricesByPeriod[i]
+		if i < self.periodSize():
+			return self.__pricesByPeriod[i]
+		else:
+			return -1
 
 	def __appendPricePeriod(self, val):
 		self.__pricesByPeriod.append(val)
@@ -96,7 +99,9 @@ class FinancialDataSet:
 		return corrcoef([self.__times, self.__prices])[0][1]
 
 	def printData(self):
-		print self.__data
+		for d in self.__data:
+			print self.__timeToOrd(d[0]), d[0], d[1], self.priceAtPeriod(int(self.__timeToOrd(d[0])))
+
 
 	def printInfo(self):
 		print "Size: %s\nTimePriceCorr: %s\nMinPrice:%s\nMaxPrice:%s \nLastPrice:%s" % (
@@ -158,7 +163,7 @@ class FinancialDataSet:
 		return secs*1000
 
 	def __t(self):
-		return time.time()*1000
+		return long(time.time()*1000)
 
 	def minPrice(self):
 		return self.__prices.min()
@@ -205,11 +210,11 @@ class FinancialDataSet:
 
 
 	def __timeToOrd(self, t):
-		start = self.getFirstTime()
-		diffT = t - start 
-		return diffT / self.__secToMs(self.__periodInSeconds)
+		start = long( self.getFirstTime() )
+		diffT = long(t) - start 
+		div =  diffT / self.__secToMs(self.__periodInSeconds)
 
-		
+		return div
 
 
 

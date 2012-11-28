@@ -92,7 +92,7 @@ class IntradeSession:
 
 
 	def getTime(self):
-		self.timeDelay =  d.n.getIntradeTime() - long(time.time()*1000)
+		self.timeDelay =  d.n.getIntradeTime() - self.__t()
 		return self.n.getIntradeTime()
 
 	def getAdjustedTime(self):
@@ -252,7 +252,7 @@ class DowMonthlyEvent(IntradeSession):
 
 class DowMonthlyCloseHigherSession(DowMonthlyEvent):
 	def __init__(self, memNum, pw):
-		DowMonthlyEvent.__init__(self,memNum, pw)
+		DowMonthlyCloseHigherSessiononthlyEvent.__init__(self,memNum, pw)
 
 		for c in self.event.contracts:
 			if 'ABOVE 13000' in c.name:
@@ -263,7 +263,7 @@ class DowMonthlyCloseHigherSession(DowMonthlyEvent):
 		if not self.contract:
 			raise IntradeSessionError('1',"Contract does not exist")
 
-
+ 
 
 if __name__=="__main__":
 
@@ -271,7 +271,7 @@ if __name__=="__main__":
 	print "Event:",d.getEventName()
 	print "Contract Closed:",d.isClosed()
 
-	d.financialData.printInfo()
+	d.financialData.printData()
 
 	
 

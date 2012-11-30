@@ -3,21 +3,23 @@ import ols, time, datetime
 import matplotlib.pyplot as plt
 
 class FinancialDataSet:
-	def __init__(self, data):
+	def __init__(self, data, periodInSeconds=60):
 		#print 'Initializing Financial Data...'
 		self.__data = array(data)
 		self.__times = self.__data[:, 0]
 		self.__prices = self.__data[:, 1]
 		self.__volume = self.__data[:, 2]
-		self.__ema = {}
+		self.__ema = []
 		self.__pricesByPeriod = []
-		self.__periodInSeconds = 60
+		self.__periodInSeconds = periodInSeconds
 		self.__periodValueType = 'C'
+		
 
 		for d in data:
 			self.__addPeriodData(d)
 
-		#print 'Finished initializing'
+		self.__refreshEma()
+		
 
 	def size(self):
 		return len(self.__data)
@@ -27,7 +29,9 @@ class FinancialDataSet:
 
 	def lastPeriodIndex(self):
 		return self.periodSize() - 1
-		
+
+	def getPricesByPeriod(self):
+		return self.__pricesByPeriod
 
 	def lastPeriodPrice(self):
 
@@ -55,9 +59,9 @@ class FinancialDataSet:
 			self.__appendPricePeriod( val )
 		else:
 			self.__pricesByPeriod[ordT] = val
-			
-		if self.__ema.has_key(ordT):
-			self.__ema.pop(ordT,None)
+
+	def emaSize(self):
+		return len(self.__ema)
 
 	def addDataBatch(self, data):
 		data = array(data)
@@ -65,14 +69,18 @@ class FinancialDataSet:
 		append(self.__times, data[:,0])
 		append(self.__prices, data[:,1])
 		append(self.__volume, data[:,2])
+		
 		for d in data:
 			self.__addPeriodData(d)
+
+		self.__refreshEma()
 
 	def addData(self, data):
 		append(self.__data, data)
 		append(self.__times, data[0])
 		append(self.__prices, data[1])
 		append(self.__volume, data[2])
+		self.__ema = []
 		self.__addPeriodData(data)
 
 	def __addPeriodData(self, data):
@@ -96,10 +104,10 @@ class FinancialDataSet:
 		return self.__volume
 
 	def getlastTime(self):
-		return self.__times[:-1]
+		return long(self.__times[-1][0])
 
 	def getFirstTime(self):
-		return self.__times[0]
+		return long(self.__times[0])
 
 	def timePriceCorr(self):
 		return corrcoef([self.__times, self.__prices])[0][1]
@@ -195,6 +203,9 @@ class FinancialDataSet:
 	def lastPrice(self):
 		return self.__prices[-1:][0]
 
+	def lastData(self):
+		return self.__data[-1]
+
 	def maxPriceData(self):
 		i = self.__prices.argmax()
 		return self.getDataAt(i), i
@@ -204,34 +215,64 @@ class FinancialDataSet:
 		m.summary()
 
 	def plot(self):
-		plt.plot(self.getTimes(), self.getPrices())
+		start = self.getFirstTime()
+		ts = [self.__timeToFloatOrd(t) for t in self.getTimes()]
+		plt.plot(ts, self.getPrices())
+		a = [ordT for ordT in range(self.periodSize()) ]
+
+		plt.plot(a, self.getPricesByPeriod())
+		self.__refreshEma()
+		plt.plot(a, self.__ema)
 		plt.show()
 
+
+
 	def emaAtTime(self, t):
-		return self.__getEma(self.__timeToOrd(t), self.periodSize())
+		return self.__getEma(self.__timeToOrd(t))
 
-	def __getEma(self, ordT, n):
+	def __refreshEma(self):
+		self.__ema = []
+		self.__getEma(self.lastPeriodIndex())
+
+
+	def __getEma(self, ordT):
 		if ordT <= 0:
-			return self.pricePeriodAt(0)
+				p = self.priceAtPeriod(0)
+				self.__ema.append(p)
+				
 
-		if not self.__ema.has_key(ordT):
-			prevEma = self.__getEma(ordT - 1, n)
-			p = self.pricePeriodAt(ordT)
-			k = 2/(n + 1)
-			tEma = (p * k )+ (prevEma * 1-k)
-			self.__ema[ordT] = tEma
-			return tEma
-		else:
-			return self.__ema[ordT]
+		while self.emaSize() <= ordT:
+			prevIdx = self.emaSize() - 1
+			prevEma = self.__getEma(prevIdx)
+			p = self.priceAtPeriod(self.emaSize())
+			setSize = self.periodSize()
+			ema = self.__calcEma(prevEma, setSize, p)
+			self.__ema.append( ema )
+		
+		return self.__ema[ordT]
+			
+
+	def __calcEma(self, prevEma, setSize, curPrice):
+		k = 2 / (setSize + 1.0)
+		tEma = (curPrice*k) + (prevEma * (1 - k))
+		return tEma
+
 		
 
-
 	def __timeToOrd(self, t):
-		start = long( self.getFirstTime() )
+		start =  self.getFirstTime() 
 		diffT = long(t) - start 
-		div =  diffT / self.__secToMs(self.__periodInSeconds)
+		return  diffT / self.__secToMs(self.__periodInSeconds)
+	 
 
-		return div
+	def __ordToTime(self, ordT):
+		diffT = ordT * self.__secToMs(self.__periodInSeconds)
+		return diffT + self.getFirstTime()
+
+	def __timeToFloatOrd(self, t):
+		start = self.getFirstTime()
+		diffT = t - start
+		return float(diffT)/ self.__secToMs(self.__periodInSeconds)
 
 
 

@@ -271,8 +271,9 @@ if __name__=="__main__":
 	print "Event:",d.getEventName()
 	print "Contract Closed:",d.isClosed()
 
-	d.financialData.printPeriodData()
-
+	
+	lD = d.financialData.lastData()
+	print d.financialData.emaAtTime(lD[0])
 	
 
 	
